@@ -1,19 +1,51 @@
-import * as express from 'express';
-const url = require('url');
-import { Application, Response, Request } from 'express';
-const PORT = 3000;
-const app:Application = express();
-app.get('/ping', (req:Request, res:Response)=>{
-    if(req.method ==='GET' && req.url === '/ping'){
-        res.json(req.headers);
-    }else{
-        res.status(404).end();
+import { createServer, IncomingMessage, ServerResponse } from "http"
+import * as os from "os"
+
+// Method used to handle incoming requests
+const requestListener = function (req: IncomingMessage, res: ServerResponse) {
+  try {
+    // Only send JSON if HTTP verb is GET and url is /ping
+    if (req.method === "GET" && req.url === "/ping") {
+      res.setHeader("Content-Type", "application/json")
+      
+      // Get the hostname
+      const hostname = os.hostname();
+      
+      // Create a response object with the hostname
+      const response = {
+        hostname,
+        headers: req.headers
+      };
+      
+      res.write(JSON.stringify(response))
+      res.end();
+    // Else return HTTP 404
+    } else {
+      res.statusCode = 404
+      res.end()
     }
+  // If something went wrong return HTTP 500
+  } catch (err) {
+    console.error(err)
+    res.statusCode = 500
+    res.end()
+  }
 }
-)
-app.use((req: Request, res: Response) => {
-    res.status(404).end();
-});
-app.listen(PORT, ()=>{
-    console.log('Server Express with Typescript is runing on port 3000')
-})  
+
+try {
+  // Server creation
+  const server = createServer(requestListener);
+  server.listen(process.env.PING_LISTEN_PORT ?? 8080);
+  const serverAddressInfo = server.address()
+  if (!serverAddressInfo) {
+    throw new Error("No server address info")
+  }
+  if (typeof serverAddressInfo === 'string') {
+    console.log(`Server listening : ${serverAddressInfo}`)
+  } else {
+    console.log(`Server listening : ${serverAddressInfo.address}:${serverAddressInfo.port}`)
+  }
+} catch (err) {
+  console.error(err)
+  process.exit(1)
+}

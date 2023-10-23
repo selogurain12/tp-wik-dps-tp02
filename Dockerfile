@@ -1,14 +1,23 @@
-FROM node:20-alpine3.17 as build
-COPY . /app
+# docker build -t wik-dps-tp02-ts-multi -f multi-stage.dockerfile .
+FROM node:19-bullseye AS builder
 WORKDIR /app
-RUN npm install
-RUN npm install typescript -g
-RUN tsc
 
-FROM node:20-alpine3.17 AS execution
-RUN adduser -D appuser
-COPY --from=build /app /app
+COPY package*.json ./
+RUN npm install
+
+COPY tsconfig.json ./
+COPY src ./src
+RUN npx tsc
+
+FROM node:19-bullseye-slim
 WORKDIR /app
-USER appuser
-EXPOSE 3000
-CMD ["npm", "run", "dev"]
+
+RUN adduser --no-create-home --disabled-login --group --system www
+RUN chown www -R /app
+USER www
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/dist ./dist
+
+CMD node dist/server.js
